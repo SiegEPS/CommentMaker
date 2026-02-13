@@ -13,6 +13,12 @@ interface Assignment {
   name: string;
   submission_types: string[];
 }
+interface Attachment {
+  id: number;
+  filename: string;
+  url: string;
+  size: number;
+}
 interface Submission {
   id: number;
   user_id: number;
@@ -22,6 +28,7 @@ interface Submission {
   workflow_state: string;
   late: boolean;
   missing: boolean;
+  attachments?: Attachment[];
 }
 interface Draft {
   userId: number;
@@ -99,6 +106,27 @@ export default function Home() {
     setLoading(false);
   }
 
+  function hasPyAttachment(s: Submission): boolean {
+    return (
+      s.submission_type === "online_upload" &&
+      !!s.attachments?.some((a) => a.filename.endsWith(".py"))
+    );
+  }
+
+  async function getSubmissionText(s: Submission): Promise<string | null> {
+    if (s.submission_type === "online_text_entry" && s.body) {
+      return s.body;
+    }
+    if (hasPyAttachment(s)) {
+      const pyFile = s.attachments!.find((a) => a.filename.endsWith(".py"))!;
+      const data = await apiFetch(
+        `/api/canvas/file?url=${encodeURIComponent(pyFile.url)}&filename=${encodeURIComponent(pyFile.filename)}`
+      );
+      return data.text;
+    }
+    return null;
+  }
+
   async function generateDrafts() {
     if (!courseId || !currentAssignmentId) return;
     setLoading(true);
@@ -106,26 +134,36 @@ export default function Home() {
       const subs: Submission[] = await apiFetch(
         `/api/canvas/submissions?courseId=${courseId}&assignmentId=${currentAssignmentId}`
       );
-      // Filter to online_text_entry with content, take first 3
-      const textSubs = subs
-        .filter((s) => s.submission_type === "online_text_entry" && s.body)
+      // Filter to supported types, take first 3
+      const supported = subs
+        .filter(
+          (s) =>
+            (s.submission_type === "online_text_entry" && s.body) ||
+            hasPyAttachment(s)
+        )
         .slice(0, 3);
 
-      if (textSubs.length === 0) {
-        setError("No online_text_entry submissions with content found.");
+      if (supported.length === 0) {
+        setError("No supported submissions found (text entry or .py uploads).");
         setLoading(false);
         return;
       }
-      setSubmissions(textSubs);
+      setSubmissions(supported);
+
+      // Resolve text content for each submission
+      const resolvedTexts = await Promise.all(
+        supported.map((s) => getSubmissionText(s))
+      );
+
+      const submissionsWithText = supported
+        .map((s, i) => ({ userId: s.user_id, text: resolvedTexts[i] }))
+        .filter((s): s is { userId: number; text: string } => s.text !== null);
 
       const result = await apiFetch("/api/generate", {
         method: "POST",
         body: JSON.stringify({
-          submissions: textSubs.map((s) => ({
-            userId: s.user_id,
-            text: s.body,
-          })),
-          students: textSubs.map((s) => ({
+          submissions: submissionsWithText,
+          students: supported.map((s) => ({
             name: s.user?.name ?? "",
             userId: s.user_id,
           })),
@@ -287,6 +325,15 @@ export default function Home() {
                 <span className="text-sm font-medium text-gray-700">
                   {submissions.find((s) => s.user_id === d.userId)?.user?.name ??
                     `Student #${d.userId}`}
+                  {(() => {
+                    const sub = submissions.find((s) => s.user_id === d.userId);
+                    const isPy = sub && hasPyAttachment(sub);
+                    return (
+                      <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                        {isPy ? ".py" : "text"}
+                      </span>
+                    );
+                  })()}
                 </span>
                 <span
                   className={`text-xs px-2 py-0.5 rounded ${

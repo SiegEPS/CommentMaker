@@ -108,6 +108,14 @@ export interface CanvasUser {
   short_name?: string;
 }
 
+export interface Attachment {
+  id: number;
+  filename: string;
+  url: string;
+  "content-type": string;
+  size: number;
+}
+
 export interface Submission {
   id: number;
   user_id: number;
@@ -119,6 +127,7 @@ export interface Submission {
   late: boolean;
   missing: boolean;
   attempt: number | null;
+  attachments?: Attachment[];
   submission_comments?: SubmissionComment[];
 }
 
@@ -186,4 +195,15 @@ export async function postComment(
     return { ok: false, error: `Canvas ${res.status}: ${body}` };
   }
   return { ok: true };
+}
+
+export async function downloadAttachment(
+  config: CanvasConfig,
+  fileUrl: string
+): Promise<string> {
+  const res = await canvasFetch(fileUrl, config);
+  if (!res.ok) {
+    throw new Error(`Failed to download file: ${res.status}`);
+  }
+  return res.text();
 }
