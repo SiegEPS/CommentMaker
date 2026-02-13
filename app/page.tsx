@@ -16,6 +16,7 @@ interface Assignment {
 interface Submission {
   id: number;
   user_id: number;
+  user?: { id: number; name: string };
   submission_type: string | null;
   body: string | null;
   workflow_state: string;
@@ -125,7 +126,7 @@ export default function Home() {
             text: s.body,
           })),
           students: textSubs.map((s) => ({
-            name: "",
+            name: s.user?.name ?? "",
             userId: s.user_id,
           })),
         }),
@@ -283,8 +284,9 @@ export default function Home() {
           {drafts.map((d) => (
             <div key={d.userId} className="border rounded p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">
-                  Student #{d.userId}
+                <span className="text-sm font-medium text-gray-700">
+                  {submissions.find((s) => s.user_id === d.userId)?.user?.name ??
+                    `Student #${d.userId}`}
                 </span>
                 <span
                   className={`text-xs px-2 py-0.5 rounded ${

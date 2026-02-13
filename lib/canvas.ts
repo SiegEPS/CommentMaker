@@ -58,12 +58,16 @@ async function canvasFetch(
 async function paginatedFetch<T>(
   path: string,
   config: CanvasConfig,
-  params: Record<string, string> = {}
+  params: Record<string, string | string[]> = {}
 ): Promise<T[]> {
   const url = new URL(`/api/v1${path}`, config.baseUrl);
   url.searchParams.set("per_page", String(MAX_PER_PAGE));
   for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, v);
+    if (Array.isArray(v)) {
+      for (const item of v) url.searchParams.append(k, item);
+    } else {
+      url.searchParams.set(k, v);
+    }
   }
 
   const results: T[] = [];
@@ -98,9 +102,16 @@ export interface Assignment {
   has_submitted_submissions: boolean;
 }
 
+export interface CanvasUser {
+  id: number;
+  name: string;
+  short_name?: string;
+}
+
 export interface Submission {
   id: number;
   user_id: number;
+  user?: CanvasUser;
   submission_type: string | null;
   body: string | null;
   workflow_state: string;
@@ -142,14 +153,14 @@ export async function listSubmissions(
   assignmentId: number,
   includeComments = false
 ): Promise<Submission[]> {
-  const params: Record<string, string> = {};
+  const includes = ["user"];
   if (includeComments) {
-    params["include[]"] = "submission_comments";
+    includes.push("submission_comments");
   }
   return paginatedFetch<Submission>(
     `/courses/${courseId}/assignments/${assignmentId}/submissions`,
     config,
-    params
+    { "include[]": includes }
   );
 }
 
