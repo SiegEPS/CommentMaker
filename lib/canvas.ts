@@ -138,6 +138,16 @@ export interface SubmissionComment {
   created_at: string;
 }
 
+export async function getSelf(config: CanvasConfig): Promise<CanvasUser> {
+  const url = new URL("/api/v1/users/self", config.baseUrl);
+  const res = await canvasFetch(url.toString(), config);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Canvas API ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
 export async function listCourses(config: CanvasConfig): Promise<Course[]> {
   return paginatedFetch<Course>("/courses", config, {
     enrollment_type: "teacher",

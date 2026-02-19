@@ -61,6 +61,8 @@ export default function Home() {
   const [refAssignmentId, setRefAssignmentId] = useState<number | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [teacherId, setTeacherId] = useState<number | null>(null);
+  const [styleGuide, setStyleGuide] = useState<string>("");
   const [dryRun, setDryRun] = useState(true);
   const [postResults, setPostResults] = useState<Record<number, string>>({});
 
@@ -84,8 +86,12 @@ export default function Home() {
   async function connectCanvas() {
     setLoading(true);
     try {
-      const data = await apiFetch("/api/canvas/courses");
-      setCourses(data);
+      const [coursesData, selfData] = await Promise.all([
+        apiFetch("/api/canvas/courses"),
+        apiFetch("/api/canvas/self"),
+      ]);
+      setCourses(coursesData);
+      setTeacherId(selfData.id);
       setStep("course");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Connection failed");
@@ -131,6 +137,22 @@ export default function Home() {
     if (!courseId || !currentAssignmentId) return;
     setLoading(true);
     try {
+      // Fetch style guide from reference assignment if selected
+      let guide = "";
+      if (refAssignmentId && teacherId) {
+        setError(""); // clear
+        const sgResult = await apiFetch("/api/style-guide", {
+          method: "POST",
+          body: JSON.stringify({
+            courseId,
+            assignmentId: refAssignmentId,
+            teacherId,
+          }),
+        });
+        guide = sgResult.styleGuide ?? "";
+        setStyleGuide(guide);
+      }
+
       const subs: Submission[] = await apiFetch(
         `/api/canvas/submissions?courseId=${courseId}&assignmentId=${currentAssignmentId}`
       );
@@ -167,6 +189,7 @@ export default function Home() {
             name: s.user?.name ?? "",
             userId: s.user_id,
           })),
+          ...(guide ? { styleGuide: guide } : {}),
         }),
       });
       setDrafts(result.drafts);
@@ -319,6 +342,14 @@ export default function Home() {
               Dry Run (no posting)
             </label>
           </div>
+          {styleGuide && (
+            <details className="border rounded p-3 bg-blue-50 text-sm">
+              <summary className="cursor-pointer font-medium text-blue-700">
+                Style Guide (from reference assignment)
+              </summary>
+              <pre className="mt-2 whitespace-pre-wrap text-gray-600">{styleGuide}</pre>
+            </details>
+          )}
           {drafts.map((d) => (
             <div key={d.userId} className="border rounded p-4 space-y-2">
               <div className="flex items-center justify-between">
