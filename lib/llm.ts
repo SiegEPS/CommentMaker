@@ -38,7 +38,7 @@ ${req.submissionText}`;
 - Do NOT reference the student by name.
 - Keep the comment to 2-4 paragraphs.
 
-Respond in this exact JSON format:
+Respond with ONLY raw JSON (no markdown fences, no extra text):
 {"draft": "your comment here", "reasoning": "brief explanation of what rubric items you addressed", "confidence": "high|medium|low"}`;
 
   return prompt;
@@ -65,14 +65,17 @@ export async function generateDraftComment(
     contents: buildPrompt(req),
     config: {
       temperature: 0.7,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 4096,
     },
   });
 
   const text = response.text ?? "";
 
-  // Parse JSON from response (strip markdown fences if present)
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  // Strip markdown fences if present (```json ... ``` or ``` ... ```)
+  const fenceStripped = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+
+  // Try to parse as JSON
+  const jsonMatch = fenceStripped.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -88,7 +91,7 @@ export async function generateDraftComment(
 
   // If JSON parsing fails, use raw text as draft
   return {
-    draft: text,
+    draft: fenceStripped.trim() || text,
     reasoning: "Response was not structured JSON; using raw output.",
     confidence: "low",
   };
