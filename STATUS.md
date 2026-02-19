@@ -1,6 +1,6 @@
 # Project Status
 
-## Current State: Minimum Vertical Slice Complete
+## Current State: End-to-End Flow Working
 
 ### Done
 - [x] Requirements defined (requirements.md)
@@ -8,17 +8,20 @@
 - [x] Scaffold files (README, DECISIONS, STATUS, .gitignore, .env.example)
 - [x] Next.js 15 app with TypeScript + Tailwind 4
 - [x] Canvas API helper with pagination + rate-limit backoff (`lib/canvas.ts`)
-- [x] Route handlers: courses, assignments, submissions, comment, generate
-- [x] LLM stub returning placeholder comments (`lib/llm.ts`)
+- [x] Route handlers: courses, assignments, submissions, comment, generate, file
+- [x] Gemini 3 Flash integration (`lib/llm.ts`)
 - [x] PII redaction module (`lib/redact.ts`)
 - [x] Single-page wizard UI (setup → course → assignments → drafts)
 - [x] Dry-run toggle (prevents posting to Canvas)
-- [x] Build passes cleanly
+- [x] Student names shown in UI, redacted before LLM calls
+- [x] `.py` file upload submission support
+- [x] Robust JSON parsing (handles markdown fences, truncation)
+- [x] Git repo + pushed to GitHub
 
 ### Next Up
-- [ ] Wire up real LLM providers (OpenAI / Anthropic / Google)
 - [ ] Style guide extraction from reference assignment comments
 - [ ] Rubric context integration
-- [ ] Batch generation with progress UI
+- [ ] Batch generation with progress UI (more than 3 submissions)
+- [ ] Support additional file types (.txt, .java, .js, etc.)
 - [ ] PDF/DOCX submission support
-- [ ] Git init + first commit
+- [ ] Additional LLM providers (OpenAI / Anthropic)
